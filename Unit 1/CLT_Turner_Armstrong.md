@@ -13,9 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Control Parameters
 ```{r}
 n1 = 10000000 # size of the population creation
-n2 = 50 # sample size per sample for 2nd distribution (we will compare these distributions to the population) 
-simulations = 10000 #number of samples and thus number of xbars we will generate in sampling from the population.
 df = 2 #degrees of freedom in the population distribution
+simulations = 10000 #number of samples and thus number of xbars we will generate in sampling from the population
 ```
 
 ## Data Holder
@@ -34,6 +33,8 @@ sd(population) #sigma of the population
 Generate 10,000 samples each of size 50 and find the mean of each sample.  Then store each mean in the xbar_holder vector.
 
 ```{r}
+n2 = 50 # sample size per sample for 2nd distribution (we will compare these distributions to the population)
+
 for (i in 1:simulations)
 { 
   sample1 = sample(x=population, size=n2, replace = TRUE)
@@ -42,16 +43,13 @@ for (i in 1:simulations)
 }
 ```
 
-## display the distribution of sample means (plot a histogram of the sample means)
+## display of the distribution of sample means
 ```{r}
-#par(mfrow = c(2,1))
-#hist(population, col = "blue", main = paste("Distribution of population: n = ", n1), xlab = "Population Histogram", xlim = c(min(population),max(population)))
-hist(xbar_holder1, col = "red", main = paste("Distribution of the sample mean: n = ", n2), xlab = "Dist 2 Sample Means", xlim = c(-4,4))
+hist(xbar_holder1, col = "red", main = paste("Distribution of the sample mean: n = ", n2), xlab = "Dist of Sample Means", xlim = c(-4,4))
 ```
 
-## summary statistics of the distribution of the simulated sample means. 
+## summary statistics of the distribution of the simulated sample means
 ```{r}
-summary(population) #5 number summary and the mean of the population
 summary(xbar_holder1) #5 number summary and the mean of the sample means
 sd(xbar_holder1) # standard deviation of distribution of the sample means
 
