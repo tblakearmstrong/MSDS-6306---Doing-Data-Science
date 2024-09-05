@@ -1,1 +1,170 @@
-#Enter FLS Unit 2 Code
+library(ggplot2)
+library(plotly)
+library(readr)
+library(dplyr)
+library(tidyverse)
+
+#Load File
+PlayersBBall <- read_csv("Unit 2/PlayersBBall.csv")
+head(PlayersBBall)
+
+
+#Finding NA Values
+sapply(PlayersBBall, function(x) sum(is.na(x)))
+which(is.na(PlayersBBall$position)) #or
+which(PlayersBBall$position == "")
+
+#Correct NA Values
+PlayersBBall[2143,]$position = "G"
+PlayersBBall[2143,]$height = "6-2"
+PlayersBBall[2143,]
+
+
+#Noticed no leading 0 on the height, needed to mutate the columns to resave the tibble with properly formatted height column
+data_vector <- PlayersBBall$height
+
+# Function to add leading zero to inches
+format_inches <- function(x) {
+  parts <- strsplit(x, "-")[[1]]
+  feet <- parts[1]
+  inches <- sprintf("%02d", as.numeric(parts[2]))
+  return(paste0(feet, "-", inches))
+}
+
+# Apply the function to the entire vector
+PlayersBBall$height <- sapply(data_vector, format_inches)
+
+
+#Look at the columns in the dataset to see how to properly call variables
+str(PlayersBBall)
+
+#Finding NA Values
+which(is.na(PlayersBBall$position))
+
+#Correct NA Values
+PlayersBBall[2143,]$position = "G"
+PlayersBBall[2143,]$height = "6-2"
+PlayersBBall[2143,]
+
+
+#Finding number of players in each position
+## Prompt 1
+position_distribution <- ggplot(PlayersBBall, aes(x=position, fill= position)) + geom_bar() + ggtitle("Count of Each Position")
+ggplotly(position_distribution)
+
+
+
+#Filter to just Forwards and Centers for questions 2 & 3
+position_filtered_data <- PlayersBBall %>%
+  dplyr::filter(position %in% c('C','F'))
+  head(position_filtered_data)
+  summary(position_filtered_data)
+
+#Investigating the distribution of weight of the centers is greater than the weight of the forwards
+## Prompt 2
+  center_v_forward_weight <- ggplot(position_filtered_data, aes(x = weight, fill = position)) + geom_histogram(color="white")+
+  facet_wrap(~position)+ ggtitle("#2: Weight Distribution of Centers and Forwards")
+  center_v_forward_weight
+  
+#Investigating the distribution of height of the centers is greater than the height of the forwards
+## Prompt 3
+###Convert Height to just inches to be able to have continuous data that is plot-able for just the forward and center data
+  position_filtered_data <- position_filtered_data %>%
+    dplyr::mutate(
+      feet = as.numeric(sub("-.*", "", height)),          # Extract feet part and convert to numeric
+      inches = as.numeric(sub(".*-", "", height)),        # Extract inches part and convert to numeric
+      total_inches = feet * 12 + inches                   # Convert to total inches
+    )
+  str(position_filtered_data)
+  
+#Show summary statistics by position
+  summary_by_position <- by(position_filtered_data[, c("total_inches", "weight")], position_filtered_data$position, summary)
+  summary_by_position
+  
+###Comparing distributions of heights
+  center_v_forward_height <- ggplot(position_filtered_data, aes(x = total_inches, fill = position)) + geom_histogram(color="white")+
+  facet_wrap(~position)+ggtitle("#3: Height Distribution of Centers and Forwards")
+  center_v_forward_height
+
+  
+#Investigating if the distribution of height is different between any of the positions
+## Prompt 4
+###Convert Height to just inches to be able to have continuous data that is plot-able for just the forward and center data
+  PlayersBBall <- PlayersBBall %>%
+    dplyr::mutate(
+      feet = as.numeric(sub("-.*", "", height)),          # Extract feet part and convert to numeric
+      inches = as.numeric(sub(".*-", "", height)),        # Extract inches part and convert to numeric
+      total_inches = feet * 12 + inches                   # Convert to total inches
+    )
+
+#Facet Wrapped by Position  
+  total_height_distribution <- ggplot(PlayersBBall, aes(x = total_inches, fill = position)) + geom_histogram(color="white")+
+  facet_wrap(~position) + ggtitle("Height Distributions of All Positions")
+  total_height_distribution
+
+#Box Plot
+  total_height_distribution <- ggplot(PlayersBBall, aes(x=position, y=total_inches, fill=position)) + geom_boxplot()
+  total_height_distribution
+  
+  
+#Investigating Height vs. Weight of all of the players
+## Prompt 5 & 6
+height_v_weight <- ggplot(PlayersBBall, aes(x =total_inches, y=weight, linetype=position, color=position))+geom_smooth()+
+facet_wrap(~position) + ggtitle("Height v Weight by Position")  #Loess Lines by position
+height_v_weight
+
+
+#Investigating Height vs. Weight of all of the players by position
+## Prompt 6
+height_v_weight_v_position <- ggplot(PlayersBBall, aes(x = height, y=weight, color=position))+geom_point()+
+  facet_wrap(~position)
+height_v_weight_v_position
+
+
+#Visualizing the claim that players heights have increased over the years
+##Prompt 7
+height_v_time <- ggplot(PlayersBBall, aes(x=year_start, y=total_inches, linetype=position, color=position))+geom_smooth()+
+  facet_wrap(~position)+ggtitle("Height by Position Over Time")
+height_v_time
+
+
+#3D Plot and color by position
+##Prompt 8
+plot_ly(PlayersBBall, x = ~total_inches, y = ~weight, z = ~year_start, color=~position, type = "scatter3d", mode = "markers") %>%
+  layout(title= "3D Scatter of Height vs. Weight vs. Year",
+    scene = list(
+    xaxis = list(title = "Height (in)"),
+    yaxis = list(title = "Weight (lb)"),
+    zaxis = list(title = "Year Start")
+  ))
+
+
+#Open ended data takeaway, use internet plots to provide a takeaway
+##Prompt 9
+###http://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html
+
+BballDifference <- PlayersBBall %>% 
+  dplyr::mutate(
+    years_in_league= year_end - year_start,
+    )
+
+g <- ggplot(BballDifference, aes(position, years_in_league))
+g + geom_boxplot(aes(fill=factor(position))) + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6)) + 
+  labs(title="Box plot", 
+       subtitle="Years in League by Position",
+       caption="Source: PlayersBBall.csv",
+       x="Position",
+       y="Years Played")
+
+#Education Dataset
+EducationIncome <- read_csv("Unit 2/Education_Income.csv")
+
+#Explore Dataset
+str(EducationIncome)
+head(EducationIncome)
+summary(EducationIncome)
+
+#Create Boxplot & Plotly to look at central tendency values as education increases
+median_income_plot <- ggplot(EducationIncome,aes(x=Educ,y=Income2005, fill=Educ))+geom_boxplot()+ggtitle("Median Income v Education Level")
+ggplotly(median_income_plot)
