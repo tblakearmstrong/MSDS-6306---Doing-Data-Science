@@ -1,1 +1,174 @@
 #Insert FLS 3 code
+fifa <- FIFA_Players
+
+#Look at dataset before doing anything
+head(fifa)
+str(fifa)
+gg_miss_var(fifa) #naniar package
+
+
+#seeing positions count foe entire dataset
+ggplot(fifa,aes(x=Position)) + geom_bar()
+
+
+#Part 1
+#1a
+lmlf_fifa <- fifa %>% 
+  filter(Position == "LF" | Position == "LM")
+
+#1b
+lmlf_fifa %>% 
+  select(Position, Agility, Acceleration) %>% 
+  ggpairs(aes(color=Position))
+
+#checking distribution of just the LF
+lmlf_fifa %>% 
+  filter(Position == "LF") %>% 
+  ggplot(aes(x=Agility))+geom_histogram(bins=5) #results are hard to conclude due to lack of data points, but data might look left-skewed
+
+
+#2 t-test of the agility sample means
+LM_Agility <- data.frame(lmlf_fifa) %>% 
+  filter(Position == "LM" & !is.na(Agility)) %>% 
+  select(Agility)
+LM_Agility <- unlist(LM_Agility)
+sd(LM_Agility, na.rm= TRUE)
+
+LF_Agility <- lmlf_fifa %>% 
+  filter(Position == "LF" & !is.na(Agility)) %>% 
+  select(Agility)
+LF_Agility <- unlist(LF_Agility)
+sd(LF_Agility, na.rm = TRUE)
+
+
+#Welch's t-test, need to look further into it,
+t.test(LM_Agility,LF_Agility, mu=0,paired=FALSE,conf.level = 0.95)
+
+#Since I have not taken stats 1, requested to leave it as histogram of the Agility variable for both positions for now, and state knowledge of the CLT.
+ggplot(lmlf_fifa, aes(x=Agility, fill=Position))+geom_histogram(color="Black")+facet_wrap(~Position)+ggtitle("Agility Scores by Position")
+
+
+
+
+#Part 2: EDA of the FIFA_Players dataset
+##Choosing two continuous variables: Age, Value
+##Choosing one categorical variable: Club, will cut Age to be secondary categorical
+
+##Cleanup Value
+# Remove '$' and 'K', 'M' and convert to numeric
+fifa$Value_cleaned <- gsub("€", "", fifa$Value)  # Remove the Euro symbol
+
+# Convert 'K' (thousands) to numbers
+fifa$Value_cleaned <- ifelse(grepl("K", fifa$Value_cleaned), 
+                            as.numeric(gsub("K", "", fifa$Value_cleaned)) * 1000, 
+                            fifa$Value_cleaned)
+
+# Convert 'M' (millions) to numbers
+fifa$Value_cleaned <- ifelse(grepl("M", fifa$Value_cleaned), 
+                            as.numeric(gsub("M", "", fifa$Value_cleaned)) * 1e6, 
+                            fifa$Value_cleaned)
+
+# Convert the column to numeric type
+fifa$Value_cleaned <- as.numeric(fifa$Value_cleaned)
+
+#There were a couple null_positions, filter those out
+which(is.na(fifa$Position)) #About 61 empty positions
+
+fifa_lite <- fifa %>% 
+  dplyr::filter(!is.na(Position))
+gg_miss_var(fifa_lite) #verified a lot, if not all the data we'll look at is populated
+
+
+#1-Distributions
+##Start by looking at age and value of players
+fifa_lite %>% 
+  ggplot(aes(x=Age))+geom_histogram(fill="blue",color="black")+ggtitle("Age Distribution")
+
+fifa_lite %>% 
+  ggplot(aes(x=Value_cleaned))+geom_histogram(fill="blue", color="black", bins=50)+xlim(0,3000000)+ggtitle("Value Distribution")
+
+fifa_lite %>% 
+  ggplot(aes(x=Position))+geom_histogram(fill="blue", stat="count", color="black") + ggtitle("Position Count")
+
+
+
+##2-Center & Spread
+###Age
+fifa_lite %>% 
+  #group_by(Position) %>% 
+  summarise(mean_age = mean(Age), sd_age = sd(Age), median_age= median(Age), range_age=range(Age), IQR_age = IQR(Age),count_age=n())
+
+fifa_lite %>% 
+  group_by(Position) %>% 
+  summarise(mean_age = mean(Age), sd_age = sd(Age), median_age= median(Age), min_age=min(Age),max_age=max(Age), IQR_age = IQR(Age),count_age=n()) %>% 
+  print(n=27)
+
+###Value
+fifa_lite %>% 
+#  group_by(Position) %>% 
+  summarise(mean_value = mean(Value_cleaned), sd_value = sd(Value_cleaned), median_value= median(Value_cleaned), range_value=range(Value_cleaned), IQR_value = IQR(Value_cleaned),count_value=n())
+
+
+###Value
+fifa_lite %>% 
+  group_by(Position) %>% 
+  summarise(mean_value = mean(Value_cleaned), sd_value = sd(Value_cleaned), median_value= median(Value_cleaned), min_value=min(Value_cleaned), max_value=max(Value_cleaned), IQR_value = IQR(Value_cleaned),count_age=n()) %>% 
+  print(n=27)
+
+###3-Missing Values
+s=sapply(fifa_lite, function(x) sum(is.na(x)))
+s
+
+
+
+##Does Age and Value Correlate?
+fifa_lite %>% 
+  ggplot(aes(x=Age, y=Value_cleaned))+geom_col()+ggtitle("Age v. Value") #We see a fairly normal distribution here, not linear correlation but looks 
+fifa_lite %>% 
+  ggplot(aes(x=Age, y=Value_cleaned))+geom_point() +ggtitle("Age v. Value") #We see a fairly normal distribution here
+
+##What does age and position look like?
+fifa_lite %>% 
+  ggplot(aes(x=factor(Position),y=Age), fill= Position)+geom_boxplot()
+
+fifa_lite %>% 
+  ggplot(aes(x=factor(Position),y=Value_cleaned), fill= Position)+geom_boxplot()
+
+
+###Is Value different per position?
+ggplot(fifa_lite,aes(x=Age, y=Value_cleaned, color=Position))+geom_point()+ggtitle("Age v. Value v. Position")
+
+
+#What are the top 5 positions by median by pay
+top5_position_pay <- fifa_lite %>% 
+  group_by(Position) %>% 
+  summarise(median_value=median(Value_cleaned)) %>% 
+  arrange(desc(median_value)) %>% 
+  slice(1:5)
+  ggplot(top5_position_pay,aes(x=reorder(Position, -median_value), y=median_value, fill = Position))+geom_bar(stat="identity")+ggtitle("Median pay of the Top 5 Positions")+xlab("Position")
+  
+top5_position_pay
+
+
+#ggpairs of top paid positions
+  fifa_lite %>% 
+    filter(Position %in% top5_position_pay$Position) %>% 
+    select(Age,Value_cleaned,Position) %>% 
+    ggpairs(aes(color=Position))
+  
+  #ggpairs of top position count
+  fifa_lite %>% 
+    filter(Position %in% top5_position_count$Position) %>% 
+    select(Age,Value_cleaned,Position) %>% 
+    ggpairs(aes(color=Position))
+  
+
+##Turn Age into a categorical variable, pay
+agecuts <- fifa_lite %>% 
+  mutate(AgeFact = cut(Age, breaks = c(16,20,25,30,35,40,45), labels = c("Rookie","Young","Peak","Seasoned","On Decline","Close to Retirement"))) %>% 
+  filter(Position %in% top5_position_pay$Position) %>%
+  select(Value_cleaned,AgeFact,Position) %>% 
+  count(Position,AgeFact) %>% 
+  ggplot(aes(Position, AgeFact))+ geom_tile(mapping=aes(fill=n))
+ggplotly(agecuts)
+str(fifa_lite)
