@@ -1,1 +1,131 @@
---Update FLS Code here to store it
+#For Live Session 4
+
+library(XML) #xml_Parse
+library(dplyr)
+library(tidyr)
+library(stringi)
+library(ggplot2)
+library(RCurl) #getURL
+
+#Dataset
+data <-getURL("https://d396qusza40orc.cloudfront.net/getdata%2Fdata%2Frestaurants.xml")
+doc <- xmlParse(data)
+
+#scraping restaurant name
+name <- xpathSApply(doc, "//name", xmlValue)
+name
+
+#scraping zipcode
+zipcode <- xpathSApply(doc,"//zipcode", xmlValue)
+zipcode <- as.integer(zipcode)
+#zipcode
+
+#scraping district
+councildistrict <- xpathSApply(doc,"//councildistrict",xmlValue)
+#councildistrict
+
+#Build data frame containing the three columns scraped
+balt_df <- data.frame(name, zipcode, councildistrict)
+head(balt_df)
+
+
+#Are there sushi restaurants, and if so, how many? 9!
+grepl("Sushi",balt_df$name,ignore.case=TRUE)
+sum(grepl("Sushi", balt_df$name, ignore.case=TRUE))
+
+
+#Filter to just downtown restaurants, district 11
+downtown_df <- balt_df %>% 
+  dplyr::filter(councildistrict==11)
+downtown_df
+
+#How many sushi restaurants are downtown?
+grepl("Sushi", downtown_df$name, ignore.case=TRUE)
+sum(grepl("Sushi", downtown_df$name, ignore.case=TRUE))
+
+
+#Takeaway is using grep can be dangerous because it will sum the index postiion when trying to count total, vx grepl is boolean yes/no which it will count the yes
+grep("Sushi", downtown_df$name, ignore.case=TRUE)
+which(grepl("Sushi", downtown_df$name, ignore.case=TRUE))
+
+  
+#Make bar plot of restaurants by council district
+balt_df %>% 
+  group_by(councildistrict) %>% 
+  summarize(count=n()) %>% 
+  ggplot(aes(x=factor(councildistrict, levels=c("1","2","3","4","5","6","7","8","9","10","11","12","13","14")), y=count, fill=councildistrict))+geom_bar(stat="identity") +
+  labs(title="Number of Restaurants by District", x="District", y = "Number of Restaurants")
+
+
+
+#EDA Using WDI API
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+
+install.packages("WDI")
+library(WDI)
+
+eda_data <- data.frame(WDIsearch("Energy"))
+eda_data
+
+#Electricity Use / Capita in kWh
+ELEC_WDI <-WDI(indicator= 'EG.USE.ELEC.KH.PC', country = c("US", "DE", "CN", "IN", "JP"), start=1960, end =NULL)
+
+#CO2 Emissions /capita
+CO2_WDI <- WDI(indicator="EN.ATM.CO2E.PC", country = c("US", "DE", "CN", "IN", "JP"), start=1960, end= NULL)
+
+#GDP per Capita
+GDP_WDI <- WDI('NY.GDP.PCAP.CD', country = c("US", "DE", "CN", "IN", "JP"), start = 1960, end=NULL)
+
+#Population
+POPULATION_WDI <- WDI('SP.POP.TOTL', country = c("US", "DE", "CN", "IN", "JP"), start= 1960, end=NULL)
+
+
+
+#found issue if you didn't specify by= in the merge, that it would switch it from data.frame to gg plot object
+
+#Merge first two data frames
+merge_df <- merge(ELEC_WDI, CO2_WDI, by = c("country", "year", "iso2c", "iso3c"))
+#Merge in the 3rd
+merge_df <- merge(merge_df, POPULATION_WDI, by= c("country", "year", "iso2c", "iso3c"))
+
+#merge in the last
+merge_df <- merge(merge_df, GDP_WDI, by = c("country", "year", "iso2c", "iso3c"))
+
+#Extra house keeping to drop the isoc2 & 3 columns and simplify the names of the analyzing columns 
+clean_df <- merge_df %>% 
+  dplyr::rename(
+    ELEC_USE = EG.USE.ELEC.KH.PC,
+    CO2_EMISSION = EN.ATM.CO2E.PC,
+    GDP_PER_CAP = NY.GDP.PCAP.CD,
+    POPULATION = SP.POP.TOTL
+        ) %>% 
+  dplyr::select(country, year, ELEC_USE, CO2_EMISSION, GDP_PER_CAP, POPULATION)
+
+clean_df
+head(clean_df)
+
+#GDP per Cap
+gdptime <-ggplot(clean_df, aes(x=year, y = GDP_PER_CAP, lineby = country, color=country)) + 
+  geom_line(lwd=1) + labs(title= "GDP Over Time", x="Year", y = "GDP per Cap")
+ggplotly(gdptime)
+
+#Population Growth?
+poptime <- ggplot(clean_df, aes(x=year, y = POPULATION, lineby = country, color=country)) + 
+  geom_line(lwd=1) + labs(title= "Population Over Time", x="Year", y = "Population")
+ggplotly(poptime)
+
+
+#Electricity Usage per Cap
+electime <- ggplot(clean_df, aes(x=year, y = ELEC_USE, lineby = country, color=country)) + 
+  geom_line(lwd=1) + labs(title= "Electric/Cap (kWh) vs Year", x="Year", y = "Electric use per Capita (kWh)")
+  ggplotly(electime)
+
+
+#CO2 Emissions per cap, electricity has a cost...
+CO2time <- ggplot(clean_df, aes(x=year, y = CO2_EMISSION, lineby = country, color=country)) + 
+  geom_line(lwd=1) + labs(title= "Co2 Intensity vs Year", x="Year", y = "CO2 Intensity (MT)")+xlim(1990,2020)
+  ggplotly(CO2time)
+
