@@ -1,0 +1,50 @@
+library(stringr)
+
+data(package = .packages(all.available=TRUE))
+
+sentences = stringr::sentences
+
+colors=c("orange","blue","yellow","green","purple","brown","red")
+
+color_expression = str_c(colors, collapse = "\\b|\\b")
+
+color_expression
+
+has_color = str_subset(sentences,color_expression)
+
+has_color
+
+
+
+#Example NYT
+
+library(dplyr)
+library(tidyr)
+library(plyr)
+library(jsonlite)
+
+NYTIMES_KEY = "" #API KEY
+
+term <-"Data+Science"
+begin_date <- "20240215"
+end_date <- "20240301"
+
+baseurl <- paste0("https://api.nytimes.com/svc/search/v2/articlesearch.json?begin_date=",begin_date, "&end_date=",end_date, "&facet_filter=true", "&q=", term,"&api-key=",NYTIMES_KEY, sep="")
+baseurl
+
+initialQuery <- jsonlite::fromJSON(baseurl)
+maxPages<- round((initialQuery$response$meta$hits[1]/10)-1)
+maxPages
+
+
+pages <- list()
+for(i in 1:maxPages){
+  nytSearch <-jsonlite::fromJSON(paste0(baseurl, "&page=", i),flatten=TRUE) %>% data.frame()
+  message("Retrieving page ", i)
+  pages[[i]] <- nytSearch
+  Sys.sleep(8)
+}
+
+
+allNYTSearch <- rbind_pages(pages)
+allNYTSearch
