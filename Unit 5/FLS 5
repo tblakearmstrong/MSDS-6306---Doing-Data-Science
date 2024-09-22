@@ -1,0 +1,25 @@
+library(ggplot2)
+library(plotly)
+library(readr)
+library(dplyr)
+library(tidyverse)
+library(stringr)
+
+BBall <- file.choose()
+head(BBall)
+
+#Previous Code
+##Convert Height to just inches to be able to have continuous data that is plot-able for just the forward and center data
+###position_filtered_data <- position_filtered_data %>%
+###  dplyr::mutate(
+###    feet = as.numeric(sub("-.*", "", height)),          # Extract feet part and convert to numeric
+###    inches = as.numeric(sub(".*-", "", height)),        # Extract inches part and convert to numeric
+###    total_inches = feet * 12 + inches                   # Convert to total inches
+###  )
+
+#Regular Expression Code
+
+splitHeight <- str_split(BBall$height,"-",2,simplify=FALSE)
+colnames(splitHeight, "Feet", "Inches")
+
+heightInches <- splitHeight %>% 
