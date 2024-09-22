@@ -48,3 +48,71 @@ for(i in 1:maxPages){
 
 allNYTSearch <- rbind_pages(pages)
 allNYTSearch
+
+
+allNYTSearch %>% 
+  group_by(response.docs.type_of_material) %>% 
+  dplyr::summarize(count=n()) %>% 
+  mutate(percent = (count /sum(count))*100) %>% 
+  ggplot() + 
+  geom_bar(aes(y=percent, x=response.docs.type_of_material, fill = response.docs.type_of_material), stat="identity")
+
+
+allNYTSearch$NewsorOther = ifelse(allNYTSearch$response.docs.type_of_material == "News", "News", "Other")
+
+allNYTSearch[!is.na(allNYTSearch$NewsorOther),] %>% 
+  group_by(NewsorOther) %>% 
+  dplyr::summarize(count=n()) %>% 
+  mutate(percent = (count/ sum(count))*100) %>% 
+  ggplot() +
+  geom_bar(aes(y=percent, x=NewsorOther, fill= NewsorOther), stat="identity") + coord_flip()
+
+ArticleToClassify = allNYTSearch[5,]
+trueType= allNYTSearch$response.docs.type_of_material[1]
+
+install.packages(tm)
+library(tm)
+stopwords()
+
+theText = unlist(str_split(str_replace(ArticleToClassify$response.docs.headline.main,"[^[:alnum:] ]", ""), boundary("word")))
+theText
+
+wordsToTakeOut = str_c(stopwords(),collapse = "\\b|\\b")
+wordsToTakeOut
+
+importantWords= theText[!str_detect(theText,regex(wordsToTakeOut,ignore_case=TRUE))]
+importantWords
+
+
+newsArticles = allNYTSearch %>% filter(NewsorOther=="News")
+otherArticles = allNYTSearch %>%  filter(NewsorOther=="Other")
+
+newsArticles
+
+numNewsArticles = dim(newsArticles)[1]
+numOtherArticles = dim(otherArticles)[1]
+
+numNewsArticles
+numOtherArticles
+
+thePercentHolderNews=c()
+thePercentHolderOther=c()
+
+
+
+for(i in 1 : length(importantWords))
+{
+  numNews = sum(str_count(newsArticles$response.docs.headline.main, importantWords[i]))
+  numOther = sum(str_count(otherArticles$response.docs.headline.main, importantWords[i]))
+  numNews
+  numOther
+  thePercentHolderNews[i] <- numNews/numNewsArticles
+  thePercentHolderOther[i] <- numOther/numOtherArticles
+  
+  thePercentHolderNews
+  thePercentHolderOther
+}
+
+
+thePercentHolderNews
+thePercentHolderOther
