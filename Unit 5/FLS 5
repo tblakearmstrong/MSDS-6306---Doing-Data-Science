@@ -4,9 +4,16 @@ library(readr)
 library(dplyr)
 library(tidyverse)
 library(stringr)
+library(GGally)
 
-BBall <- file.choose()
+BBall <- read.csv("Unit 2/PlayersBBall.csv")
 head(BBall)
+BBall[2143,]$position = "G"
+BBall[2143,]$height = "6-2"
+BBall[2143,]$weight = 185
+
+BBall$position2 <- ifelse(BBall$position == "C-F","F-C",BBall$position)
+BBall$position2 <- ifelse(BBall$position == "G-F","F-G", BBall$position2)
 
 #Previous Code
 ##Convert Height to just inches to be able to have continuous data that is plot-able for just the forward and center data
@@ -18,8 +25,41 @@ head(BBall)
 ###  )
 
 #Regular Expression Code
+BBall$height
+splitHeight <- (str_split(BBall$height,"-",simplify=TRUE))
+feet <- as.numeric(splitHeight[,1])
+inches <- as.numeric(splitHeight[,2])
+totalinches <- feet*12 + inches
+totalinches
 
-splitHeight <- str_split(BBall$height,"-",2,simplify=FALSE)
-colnames(splitHeight, "Feet", "Inches")
+#I found getting the 2 split items out of the list it creates when Simplify is FALSE requires sapply to wrap over it to transfer values and is more difficult 
 
-heightInches <- splitHeight %>% 
+ggplot(BBall, aes(x=totalinches, fill=position2))+geom_histogram()+facet_wrap(~position2)
+
+
+#Section 2 of FLS 5
+fifa <- read.csv("Unit 3/FIFA Players.csv")
+head(fifa)
+
+#Correcting Height
+fifa_splitHeight <- (str_split(fifa$Height,"'",simplify=TRUE))
+fifa_feet <- as.numeric(fifa_splitHeight[,1])
+fifa_inches <- as.numeric(fifa_splitHeight[,2])
+fifa$fifa_totalinches <- fifa_feet*12 + fifa_inches
+fifa$fifa_totalinches
+
+
+#Correcting Weight
+length(fifa$Weight)
+fifa$Weight2 <- as.numeric(str_replace(fifa$Weight,"lbs",""))
+fifa$Weight2
+
+fifa2 <- fifa %>% 
+  dplyr::filter(!is.na(fifa$Weight2))
+summary(fifa2)  
+
+
+fifa2 %>% 
+  filter(Position == "LB"| Position == "LM") %>%
+  select(Weight = Weight2, Height = fifa_totalinches, Position) %>% 
+  ggpairs(aes(color=Position))
