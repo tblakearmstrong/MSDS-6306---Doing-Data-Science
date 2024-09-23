@@ -3,6 +3,7 @@ library(plotly)
 library(readr)
 library(dplyr)
 library(tidyverse)
+library(tidyr)
 library(stringr)
 library(GGally)
 
@@ -34,7 +35,7 @@ totalinches
 
 #I found getting the 2 split items out of the list it creates when Simplify is FALSE requires sapply to wrap over it to transfer values and is more difficult 
 
-ggplot(BBall, aes(x=totalinches, fill=position2))+geom_histogram()+facet_wrap(~position2)
+ggplot(BBall, aes(x=totalinches, fill=position2))+geom_histogram()+facet_wrap(~position2)+labs(title = "Histograms of Height by Position", x= "Height (in)", y= "Count")
 
 
 #Section 2 of FLS 5
@@ -62,4 +63,84 @@ summary(fifa2)
 fifa2 %>% 
   filter(Position == "LB"| Position == "LM") %>%
   select(Weight = Weight2, Height = fifa_totalinches, Position) %>% 
-  ggpairs(aes(color=Position))
+  ggpairs(aes(color=Position)) %>% 
+  ggplotly
+
+
+##Section 3
+boy_names = c("Oliver", "Harry", "George", "Jack","Jacob", "Noah","Charlie", "Muhammad", "Thomas", "Oscar")
+girl_names = c("Olivia", "Amelia","Emily","Isla","Ava","Isabella","Lily", "Jessica","Ella","Mia")
+
+
+###Question 1
+df <- read.csv("Unit 5/yob2016.txt",sep=";",header=FALSE) #Read Data
+summary(df) #Display the Summary and Structure of the Dataset
+str(df)
+df
+
+
+#Find the duplicate name and drop it from the database
+double_name <- str_detect(df$V1, "y{3}")
+double_name
+df[double_name,]
+
+
+#Remove the observation
+y2016 <- df[!str_detect(df, "y{3}"),]
+y2016
+
+#I want to rename the columns for future use
+colnames(y2016) <- c("Name", "Gender", "NameCount")
+y2016
+
+###Question 2
+y2015 <- read.csv("Unit 5/yob2015.txt", header = FALSE) #Read Data
+summary(y2015) #Display the Summary and Structure of the Dataset
+str(y2015)
+
+#I want to rename the columns for future use
+colnames(y2015) <- c("Name", "Gender", "NameCount")
+y2015
+
+#Grab last 10 rows of the dataframe, what is interesting about these?
+tail(y2015,10)
+
+#Merge y2016 w/ y2015 where tfhe number of named contains no NAs
+final <- inner_join(y2016,y2015, by="Name")
+final
+
+#check that I didn't induce any NA's
+sum(is.na(final$NameCount.x))
+sum(is.na(final$NameCount.y))
+
+###Question 3
+final$total = final$NameCount.x + final$NameCount.y
+final$total #look at the data
+
+sum(final$total) #7,472,196 people were given popular names
+
+#Top 10 popular names
+top10names <- final %>% 
+  arrange(desc(total)) %>% 
+  head(10) %>% 
+  print()
+
+#Having a girl, filter out the boys, what are the top 10 popular GIRL names
+top10girlnames <- final %>% 
+  filter(Gender.x == "F" & Gender.y == "F") %>% 
+  arrange(desc(total)) %>% 
+  head(10) %>% 
+  print()
+
+top10girlnamesoutput <- top10girlnames %>% 
+  select(Name,total)
+
+#write the top ten girl names to a csv
+write.csv(top10girlnamesoutput, file = "toptengirlnames.csv")
+
+
+###Question 4
+#Create visualizations
+#top10 girl names visualization
+top10girlnamesoutput %>% 
+  ggplot(aes(x=Name, y=total, fill=Name))+geom_bar(stat="identity")+geom_text(aes(label = total),vjust = -0.5) + labs(title="2015 & 2016 Most Popular Girl Names", x="Girl Name", y="Total Count of Girls Name")
